@@ -10,24 +10,36 @@ services:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
-    build: ./social-media-backend
+    build: 
+      context: ./social-media-backend
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/social_media_platform
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: user
+    restart: always
 
   frontend:
-    build: ./social-media-frontend
+    build:
+      context: ./social-media-frontend
+      dockerfile: Dockerfile
     ports:
       - "3000:80"
     depends_on:
       - backend
+    restart: always
 
 volumes:
   mysql-data:
