@@ -1,4 +1,3 @@
-// src/components/user/UserList.tsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { usersAPI } from '../../api/users';

@@ -35,7 +35,7 @@ const Navbar = () => {
                 <Menu.Button className="p-2 hover:bg-gray-100 rounded-full">
                   {user.profilePictureUrl ? (
                     <img
-                      src={user.profilePictureUrl}
+                      src={"http://localhost:8080" + user.profilePictureUrl}
                       alt={user.username}
                       className="h-8 w-8 rounded-full"
                     />

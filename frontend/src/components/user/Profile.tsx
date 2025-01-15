@@ -80,7 +80,7 @@ const Profile: React.FC = () => {
         <div className="flex items-start gap-6 mb-6">
           {user.profilePictureUrl ? (
             <img
-              src={user.profilePictureUrl}
+              src={"http://localhost:8080" +user.profilePictureUrl}
               alt={user.username}
               className="w-32 h-32 rounded-full object-cover"
             />
