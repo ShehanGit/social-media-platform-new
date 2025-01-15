@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mysql:
     image: mysql:8.0
@@ -11,35 +9,34 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-puser"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
 
   backend:
-    build: 
-      context: ./social-media-backend
+    build:
+      context: ./backend
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    depends_on:
-      mysql:
-        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/social_media_platform
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: user
-    restart: always
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    depends_on:
+      mysql:
+        condition: service_healthy
 
   frontend:
     build:
-      context: ./social-media-frontend
+      context: ./frontend
       dockerfile: Dockerfile
     ports:
       - "3000:80"
     depends_on:
       - backend
-    restart: always
 
 volumes:
   mysql-data:

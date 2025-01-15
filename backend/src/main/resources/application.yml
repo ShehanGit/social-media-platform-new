@@ -32,13 +32,3 @@ storage:
 
 recaptcha:
   secret: 6Lf9jbMqAAAAAD7_g3n9H4-NmXw52Cffl-NCCKrI
-
-
-spring:
-  datasource:
-    url: jdbc:mysql://db:3306/socialmedia
-    username: root
-    password: password
-  jpa:
-    hibernate:
-      ddl-auto: update
