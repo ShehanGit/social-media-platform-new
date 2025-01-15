@@ -59,13 +59,35 @@ public class PostController {
 
 
     @GetMapping("/user")
-    public ResponseEntity<Page<Post>> getUserPosts(
+    public ResponseEntity<Page<PostResponse>> getUserPosts(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         PageRequest pageRequest = PageRequest.of(page, size);
-        return ResponseEntity.ok(postService.getPostsByUser(userDetails.getUsername(), pageRequest));
+        Page<Post> userPosts = postService.getPostsByUser(userDetails.getUsername(), pageRequest);
+        Page<PostResponse> postResponses = userPosts.map(this::convertToPostResponse);
+        return ResponseEntity.ok(postResponses);
+    }
+
+
+
+    private PostResponse convertToPostResponse(Post post) {
+        return PostResponse.builder()
+                .id(post.getId())
+                .caption(post.getCaption())
+                .mediaUrl(post.getMediaUrl())
+                .mediaType(post.getMediaType())
+                .createdAt(post.getCreatedAt().toString())
+                .updatedAt(post.getUpdatedAt().toString())
+                .user(PostResponse.UserSummary.builder()
+                        .id(post.getUser().getId())
+                        .username(post.getUser().getUsername())
+                        .profilePictureUrl(post.getUser().getProfilePictureUrl())
+                        .build())
+                .likesCount(post.getLikes().size())
+                .commentsCount(post.getComments().size())
+                .build();
     }
 
     @PutMapping("/{postId}")
