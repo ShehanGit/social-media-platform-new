@@ -1,14 +1,14 @@
 export interface User {
   id: number;
-  username: string;
-  firstname: string;
-  lastname: string;
+  username?: string;
+  firstname?: string;
+  lastname?: string;
   email: string;
-  bio: string | null;
-  profilePictureUrl: string | null;
-  website: string | null;
-  phone: string | null;
-  location: string | null;
+  profilePictureUrl?: string;
+  bio?: string;
+  website?: string;
+  phone?: string;
+  location?: string;
 }
 
 export interface Post {
@@ -84,6 +84,15 @@ export interface PaginatedResponse<T> {
     last: boolean;
   }
   
+  
+  export interface AuthContextType {
+    user: User | null;
+    isLoading: boolean;
+    isAuthenticated: boolean;
+    login: (email: string, password: string) => Promise<void>;
+    logout: () => void;
+    updateUser: (userData: Partial<User>) => Promise<void>;
+  }
   
   export interface AuthResponse {
     token: string;
