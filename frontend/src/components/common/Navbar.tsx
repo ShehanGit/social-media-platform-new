@@ -157,18 +157,8 @@ const Navbar = () => {
           {/* Navigation */}
           {user ? (
             <div className="flex items-center space-x-4">
-              <Link
-                to="/"
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <HomeIcon className="h-6 w-6" />
-              </Link>
-              <Link
-                to="/create-post"
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <PlusIcon className="h-6 w-6" />
-              </Link>
+              
+              
 
               {/* Profile Menu */}
               <Menu as="div" className="relative">
