@@ -22,11 +22,22 @@ interface CommentState {
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
+  console.log('PostCard rendering with post:', post);
+
   const { user: currentUser } = useAuth();
   const [isLiked, setIsLiked] = useState<boolean>(false);
   const [likesCount, setLikesCount] = useState<number>(post.likesCount || 0);
+  const [showComments, setShowComments] = useState<boolean>(false);
+  const [imageError, setImageError] = useState<boolean>(false);
+  const [newComment, setNewComment] = useState<string>('');
+  const [commentState, setCommentState] = useState<CommentState>({
+    content: [],
+    page: 0,
+    hasMore: true,
+    isLoading: false
+  });
+  const [commentCount, setCommentCount] = useState<number>(0);
 
-  // Check initial like status
   useEffect(() => {
     const checkLikeStatus = async () => {
       try {
@@ -39,17 +50,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
     };
     checkLikeStatus();
   }, [post.id]);
-  const [showComments, setShowComments] = useState<boolean>(false);
-  const [imageError, setImageError] = useState<boolean>(false);
-  const [newComment, setNewComment] = useState<string>('');
-  
-  const [commentState, setCommentState] = useState<CommentState>({
-    content: [],
-    page: 0,
-    hasMore: true,
-    isLoading: false
-  });
-  const [commentCount, setCommentCount] = useState<number>(0);
 
   const fetchCommentCount = async () => {
     try {
@@ -68,7 +68,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
     try {
       setCommentState(prev => ({ ...prev, isLoading: true }));
       const response = await commentsAPI.getComments(post.id, commentState.page);
-      
       setCommentState(prev => ({
         content: prev.page === 0 ? response.content : [...prev.content, ...response.content],
         page: prev.page,
@@ -76,7 +75,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
         isLoading: false
       }));
     } catch (error) {
-      toast.error('Failed to load comments');
+      console.error('Failed to load comments:', error);
       setCommentState(prev => ({ ...prev, isLoading: false }));
     }
   };
@@ -105,7 +104,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
         content: [response, ...prev.content]
       }));
       setNewComment('');
-      await fetchCommentCount(); // Refresh comment count
+      await fetchCommentCount();
       toast.success('Comment added successfully');
     } catch (error) {
       toast.error('Failed to add comment');
@@ -119,7 +118,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
         ...prev,
         content: prev.content.filter(comment => comment.id !== commentId)
       }));
-      await fetchCommentCount(); // Refresh comment count
+      await fetchCommentCount();
       toast.success('Comment deleted successfully');
     } catch (error) {
       toast.error('Failed to delete comment');
@@ -142,6 +141,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
     return `http://localhost:8080${cleanPath}`;
   };
 
+  // Early return if post or user data is missing
+  if (!post || !post.user) {
+    console.error('Missing post or user data:', post);
+    return null;
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden my-4">
       {/* Post Header */}
@@ -149,14 +154,16 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
         <div className="flex items-center space-x-3">
           <img
             src={getMediaUrl(post.user.profilePictureUrl)}
-            alt={post.user.username}
-            className="h-10 w-10 rounded-full object-cover"
+            alt="Profile"
+            className="h-10 w-10 rounded-full object-cover bg-gray-200"
             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
               e.currentTarget.src = '/default-avatar.png';
             }}
           />
           <div>
-            <p className="font-semibold">{post.user.username}</p>
+            <p className="font-semibold text-gray-900">
+              {post.user.firstname} {post.user.lastname}
+            </p>
             <p className="text-xs text-gray-500">
               {format(new Date(post.createdAt), 'MMM d, yyyy')}
             </p>
@@ -174,7 +181,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
 
       {/* Post Media */}
       {post.mediaUrl && !imageError && (
-        <div className="relative w-full" style={{ paddingBottom: '100%' }}>
+        <div className="relative w-full bg-gray-100" style={{ paddingBottom: '100%' }}>
           <img
             src={getMediaUrl(post.mediaUrl)}
             alt="Post content"
@@ -189,7 +196,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
         <div className="flex items-center space-x-4 mb-4">
           <button
             onClick={handleLike}
-            className="flex items-center space-x-1 text-gray-600 hover:text-red-500"
+            className="flex items-center space-x-1 text-gray-600 hover:text-red-500 transition-colors"
           >
             {isLiked ? (
               <HeartIconSolid className="h-6 w-6 text-red-500" />
@@ -200,7 +207,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
           </button>
           <button
             onClick={handleShowComments}
-            className="flex items-center space-x-1 text-gray-600 hover:text-blue-500"
+            className="flex items-center space-x-1 text-gray-600 hover:text-blue-500 transition-colors"
           >
             <ChatBubbleLeftIcon className="h-6 w-6" />
             <span>{commentCount}</span>
@@ -208,12 +215,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
         </div>
 
         {/* Caption */}
-        <p className="text-gray-800">{post.caption}</p>
+        <p className="text-gray-800 whitespace-pre-wrap">{post.caption}</p>
 
         {/* Comments Section */}
         {showComments && (
           <div className="mt-4 space-y-4">
-            {/* Comment Form */}
             <form onSubmit={handleSubmitComment} className="flex space-x-2">
               <input
                 type="text"
@@ -224,14 +230,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
               />
               <button
                 type="submit"
-                className="p-2 text-blue-500 hover:text-blue-600"
+                className="p-2 text-blue-500 hover:text-blue-600 disabled:opacity-50"
                 disabled={!newComment.trim()}
               >
                 <PaperAirplaneIcon className="h-5 w-5" />
               </button>
             </form>
 
-            {/* Comments List */}
             <div className="space-y-3">
               {commentState.content.map((comment) => (
                 <div key={comment.id} className="flex justify-between items-start">
@@ -254,7 +259,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
               ))}
             </div>
 
-            {/* Load More Comments */}
             {commentState.hasMore && (
               <button
                 onClick={handleLoadMoreComments}

@@ -8,6 +8,7 @@ export const postsAPI = {
         'Content-Type': 'multipart/form-data',
       },
     });
+    console.log('Raw API response:', response.data);
     return response.data;
   },
 

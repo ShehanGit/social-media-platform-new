@@ -88,10 +88,12 @@ public class PostService {
                 .user(PostResponse.UserSummary.builder()
                         .id(post.getUser().getId())
                         .username(post.getUser().getUsername())
+                        .firstname(post.getUser().getFirstname())
+                        .lastname(post.getUser().getLastname())
                         .profilePictureUrl(post.getUser().getProfilePictureUrl())
                         .build())
-                .likesCount(post.getLikes().size())
-                .commentsCount(post.getComments().size())
+                .likesCount(post.getLikes() != null ? post.getLikes().size() : 0)
+                .commentsCount(post.getComments() != null ? post.getComments().size() : 0)
                 .build();
     }
 
@@ -121,6 +123,7 @@ public class PostService {
             throw new IllegalStateException("User not authorized to delete this post");
         }
 
+        // Delete the media file if it exists
         if (post.getMediaUrl() != null) {
             String fileName = post.getMediaUrl().substring(post.getMediaUrl().lastIndexOf('/') + 1);
             Path filePath = Paths.get(uploadDir + fileName);

@@ -21,6 +21,8 @@ export interface Post {
   user: {
     id: number;
     username: string;
+    firstname?: string;
+    lastname?: string;
     profilePictureUrl: string | null;
   };
   likesCount: number;

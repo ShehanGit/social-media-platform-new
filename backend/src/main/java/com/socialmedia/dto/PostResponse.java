@@ -22,6 +22,8 @@ public class PostResponse {
     public static class UserSummary {
         private Integer id;
         private String username;
+        private String firstname;
+        private String lastname;
         private String profilePictureUrl;
     }
 }
