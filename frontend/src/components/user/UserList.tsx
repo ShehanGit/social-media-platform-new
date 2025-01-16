@@ -95,7 +95,8 @@ const UserList = ({ userId, type }: UserListProps) => {
             variant={user.isFollowing ? 'outline' : 'primary'}
             size="sm"
           >
-            {user.isFollowing ? 'Unfollow' : 'Follow'}
+            
+            {user.isFollowing ? 'Follow' : 'Unfollow'}
           </Button>
         </div>
       ))}
