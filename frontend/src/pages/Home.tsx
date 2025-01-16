@@ -16,7 +16,7 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-6 relative mt-20">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Feed</h1>
         <div className="flex items-center space-x-4">

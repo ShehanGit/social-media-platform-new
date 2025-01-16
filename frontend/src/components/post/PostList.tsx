@@ -79,7 +79,7 @@ const PostList = ({ userId, sortBy = 'createdAt' }: PostListProps) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 ">
       {posts?.map(post => (
         <PostCard
           key={post.id}

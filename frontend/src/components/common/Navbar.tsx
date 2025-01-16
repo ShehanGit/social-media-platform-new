@@ -22,9 +22,7 @@ interface SearchResult {
 }
 
 const Navbar = () => {
-  const auth = useAuth();
-  const user = auth?.user;
-  const logout = auth?.logout;
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -50,14 +48,7 @@ const Navbar = () => {
         setIsSearching(true);
         try {
           const response = await usersAPI.searchUsers(debouncedSearch);
-          const mappedResults = response.content.map(user => ({
-            id: user.id,
-            username: user.username || '',
-            firstname: user.firstname || '',
-            lastname: user.lastname || '',
-            profilePictureUrl: user.profilePictureUrl
-          }));
-          setSearchResults(mappedResults);
+          setSearchResults(response.content);
           setShowResults(true);
         } catch (error) {
           console.error('Search failed:', error);
@@ -184,7 +175,7 @@ const Navbar = () => {
                 <Menu.Button className="p-2 hover:bg-gray-100 rounded-full">
                   {user.profilePictureUrl ? (
                     <img
-                      src={user.profilePictureUrl}
+                      src={`http://localhost:8080${user.profilePictureUrl}`}
                       alt={user.username || ''}
                       className="h-8 w-8 rounded-full object-cover"
                     />
@@ -216,7 +207,7 @@ const Navbar = () => {
                     <Menu.Item>
                       {({ active }) => (
                         <button
-                          onClick={() => logout && logout()}
+                          onClick={() => logout()}
                           className={`${
                             active ? 'bg-gray-100' : ''
                           } block w-full text-left px-4 py-2 text-sm text-gray-700`}
