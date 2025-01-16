@@ -1,4 +1,3 @@
-// src/api/auth.ts
 import api from '../utils/axios';
 import { AuthResponse, LoginCredentials, RegisterData } from '../types';
 

@@ -48,24 +48,23 @@ public class PostController {
     public ResponseEntity<Page<PostResponse>> getFeedPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         User currentUser = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(sortBy).descending());
+        PageRequest pageRequest = PageRequest.of(page, size);
         return ResponseEntity.ok(postService.getFeedPosts(currentUser, pageRequest));
     }
 
-    @GetMapping("/explore")
-    public ResponseEntity<Page<PostResponse>> getExplorePosts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy
-    ) {
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(sortBy).descending());
-        return ResponseEntity.ok(postService.getExplorePosts(pageRequest));
-    }
+//    @GetMapping("/explore")
+//    public ResponseEntity<Page<PostResponse>> getExplorePosts(
+//            @RequestParam(defaultValue = "0") int page,
+//            @RequestParam(defaultValue = "10") int size,
+//            @RequestParam(defaultValue = "createdAt") String sortBy
+//    ) {
+//        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(sortBy).descending());
+//        return ResponseEntity.ok(postService.getExplorePosts(pageRequest));
+//    }
 
     @GetMapping("/by-likes")
     public ResponseEntity<Page<PostResponse>> getFeedPostsByLikes(
@@ -79,26 +78,27 @@ public class PostController {
         return ResponseEntity.ok(postService.getFeedPostsByLikes(currentUser, pageRequest));
     }
 
-    @GetMapping("/explore/by-likes")
-    public ResponseEntity<Page<PostResponse>> getExplorePostsByLikes(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
-        PageRequest pageRequest = PageRequest.of(page, size);
-        return ResponseEntity.ok(postService.getExplorePostsByLikes(pageRequest));
-    }
 
-    @GetMapping("/user")
-    public ResponseEntity<Page<PostResponse>> getUserPosts(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
-        PageRequest pageRequest = PageRequest.of(page, size);
-        Page<Post> userPosts = postService.getPostsByUser(userDetails.getUsername(), pageRequest);
-        Page<PostResponse> postResponses = userPosts.map(this::convertToPostResponse);
-        return ResponseEntity.ok(postResponses);
-    }
+//    @GetMapping("/explore/by-likes")
+//    public ResponseEntity<Page<PostResponse>> getExplorePostsByLikes(
+//            @RequestParam(defaultValue = "0") int page,
+//            @RequestParam(defaultValue = "10") int size
+//    ) {
+//        PageRequest pageRequest = PageRequest.of(page, size);
+//        return ResponseEntity.ok(postService.getExplorePostsByLikes(pageRequest));
+//    }
+
+//    @GetMapping("/user")
+//    public ResponseEntity<Page<PostResponse>> getUserPosts(
+//            @AuthenticationPrincipal UserDetails userDetails,
+//            @RequestParam(defaultValue = "0") int page,
+//            @RequestParam(defaultValue = "10") int size
+//    ) {
+//        PageRequest pageRequest = PageRequest.of(page, size);
+//        Page<Post> userPosts = postService.getPostsByUser(userDetails.getUsername(), pageRequest);
+//        Page<PostResponse> postResponses = userPosts.map(this::convertToPostResponse);
+//        return ResponseEntity.ok(postResponses);
+//    }
 
     private PostResponse convertToPostResponse(Post post) {
         return PostResponse.builder()

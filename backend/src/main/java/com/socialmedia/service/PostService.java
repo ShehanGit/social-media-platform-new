@@ -73,11 +73,11 @@ public class PostService {
         return posts.map(this::convertToPostResponse);
     }
 
-    // Get explore posts (all posts) ordered by creation date
-    public Page<PostResponse> getExplorePosts(Pageable pageable) {
-        Page<Post> posts = postRepository.findAllPostsOrderByCreatedAtDesc(pageable);
-        return posts.map(this::convertToPostResponse);
-    }
+//    // Get explore posts (all posts) ordered by creation date
+//    public Page<PostResponse> getExplorePosts(Pageable pageable) {
+//        Page<Post> posts = postRepository.findAllPostsOrderByCreatedAtDesc(pageable);
+//        return posts.map(this::convertToPostResponse);
+//    }
 
     // Get feed posts ordered by likes
     public Page<PostResponse> getFeedPostsByLikes(User currentUser, Pageable pageable) {
@@ -85,11 +85,11 @@ public class PostService {
         return posts.map(this::convertToPostResponse);
     }
 
-    // Get explore posts ordered by likes
-    public Page<PostResponse> getExplorePostsByLikes(Pageable pageable) {
-        Page<Post> posts = postRepository.findAllPostsOrderByLikesDesc(pageable);
-        return posts.map(this::convertToPostResponse);
-    }
+//    // Get explore posts ordered by likes
+//    public Page<PostResponse> getExplorePostsByLikes(Pageable pageable) {
+//        Page<Post> posts = postRepository.findAllPostsOrderByLikesDesc(pageable);
+//        return posts.map(this::convertToPostResponse);
+//    }
 
     private PostResponse convertToPostResponse(Post post) {
         return PostResponse.builder()
@@ -111,11 +111,11 @@ public class PostService {
                 .build();
     }
 
-    public Page<Post> getPostsByUser(String userEmail, Pageable pageable) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return postRepository.findByUserOrderByCreatedAtDesc(user, pageable);
-    }
+//    public Page<Post> getPostsByUser(String userEmail, Pageable pageable) {
+//        User user = userRepository.findByEmail(userEmail)
+//                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+//        return postRepository.findByUserOrderByCreatedAtDesc(user, pageable);
+//    }
 
     public Post updatePost(Long postId, String caption, String userEmail) {
         Post post = postRepository.findById(postId)
