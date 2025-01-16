@@ -27,15 +27,25 @@ export interface Post {
   commentsCount: number;
 }
 
+export interface Comment {
+  id: number;
+  content: string;
+  userEmail: string;
+  userName: string;
+  createdAt: string;
+  updatedAt: string;
+  isAuthor: boolean;
+}
+
 export interface PaginatedResponse<T> {
   content: T[];
   pageable: {
     pageNumber: number;
     pageSize: number;
   };
+  last: boolean;
   totalElements: number;
   totalPages: number;
-  last: boolean;
 }
   
   export interface Comment {

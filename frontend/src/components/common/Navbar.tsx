@@ -1,15 +1,18 @@
-// src/components/common/Navbar.tsx
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu } from '@headlessui/react';
 import { UserCircleIcon, HomeIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
+import CreatePostModal from '../post/CreatePostModal';
 import React from 'react';
 
 const Navbar = () => {
-  const { user, logout } = useAuth() as any;
+  const auth = useAuth();
   const navigate = useNavigate();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
+
+  if (!auth) return null;
+  const { user, logout } = auth;
 
   return (
     <nav className="bg-white shadow-sm border-b">
@@ -26,16 +29,20 @@ const Navbar = () => {
               <Link to="/" className="p-2 hover:bg-gray-100 rounded-full">
                 <HomeIcon className="h-6 w-6" />
               </Link>
-              <Link to="/create-post" className="p-2 hover:bg-gray-100 rounded-full">
+              
+              <button 
+                onClick={() => setIsCreatePostOpen(true)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
                 <PlusIcon className="h-6 w-6" />
-              </Link>
+              </button>
               
               {/* Profile Menu */}
               <Menu as="div" className="relative">
                 <Menu.Button className="p-2 hover:bg-gray-100 rounded-full">
                   {user.profilePictureUrl ? (
                     <img
-                      src={"http://localhost:8080" + user.profilePictureUrl}
+                      src={user.profilePictureUrl}
                       alt={user.username}
                       className="h-8 w-8 rounded-full"
                     />
@@ -89,6 +96,17 @@ const Navbar = () => {
           )}
         </div>
       </div>
+
+      {/* Create Post Modal */}
+      <CreatePostModal
+        isOpen={isCreatePostOpen}
+        onClose={() => setIsCreatePostOpen(false)}
+        onPostCreated={() => {
+          setIsCreatePostOpen(false);
+          // Optionally refresh the posts list or navigate to home
+          navigate('/');
+        }}
+      />
     </nav>
   );
 };

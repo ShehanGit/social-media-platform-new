@@ -1,23 +1,39 @@
-// src/components/post/PostCreate.tsx
-import { useState, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState, useRef } from 'react';
 import { PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { useCreatePost } from '../../hooks/usePosts';
+import { postsAPI } from '../../api/post';
 import toast from 'react-hot-toast';
-import React from 'react';
+import Button from '../common/Button';
 
-interface PostCreateForm {
-  caption: string;
-  media?: FileList;
+interface PostCreateProps {
+  onPostCreated?: () => void;
 }
 
-const PostCreate = () => {
+const PostCreate: React.FC<PostCreateProps> = ({ onPostCreated }) => {
+  const [caption, setCaption] = useState('');
+  const [media, setMedia] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<PostCreateForm>();
-  const { createPost, isCreating } = useCreatePost();
 
-  const handlePreview = (file: File) => {
+  const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size should be less than 5MB');
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Only image files are allowed');
+      return;
+    }
+
+    setMedia(file);
+
+    // Create preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreview(reader.result as string);
@@ -25,84 +41,70 @@ const PostCreate = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast.error('File size should be less than 5MB');
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        return;
-      }
-      if (!file.type.startsWith('image/')) {
-        toast.error('Only image files are allowed');
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        return;
-      }
-      handlePreview(file);
-    }
-  };
-
-  const clearPreview = () => {
+  const clearMedia = () => {
+    setMedia(null);
     setPreview(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const onSubmit = async (data: PostCreateForm) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!caption.trim() && !media) {
+      toast.error('Please add a caption or image');
+      return;
+    }
+
     try {
-      await createPost({
-        caption: data.caption,
-        media: data.media?.[0]
-      });
-      reset();
-      setPreview(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      setIsSubmitting(true);
+      const formData = new FormData();
+      formData.append('caption', caption);
+      if (media) {
+        formData.append('media', media);
+      }
+
+      await postsAPI.createPost(formData);
+      
+      // Reset form
+      setCaption('');
+      clearMedia();
+      toast.success('Post created successfully');
+      
+      // Notify parent component
+      if (onPostCreated) {
+        onPostCreated();
       }
     } catch (error) {
-      console.error('Failed to create post:', error);
+      toast.error('Failed to create post');
+      console.error('Error creating post:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {/* Caption Input */}
         <div>
           <textarea
-            {...register('caption', {
-              required: 'Caption is required',
-              maxLength: {
-                value: 2000,
-                message: 'Caption must be less than 2000 characters'
-              }
-            })}
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
             placeholder="What's on your mind?"
-            className={`w-full p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.caption ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             rows={3}
           />
-          {errors.caption && (
-            <p className="mt-1 text-sm text-red-500">
-              {errors.caption.message}
-            </p>
-          )}
         </div>
 
         {/* Media Upload */}
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
           <input
             type="file"
-            {...register('media')}
+            onChange={handleMediaChange}
             ref={fileInputRef}
             accept="image/*"
-            onChange={handleFileChange}
             className="hidden"
             id="media-upload"
           />
@@ -116,7 +118,7 @@ const PostCreate = () => {
               />
               <button
                 type="button"
-                onClick={clearPreview}
+                onClick={clearMedia}
                 className="absolute top-2 right-2 p-1 bg-gray-800 bg-opacity-50 rounded-full text-white hover:bg-opacity-70"
               >
                 <XMarkIcon className="h-5 w-5" />
@@ -139,42 +141,14 @@ const PostCreate = () => {
         </div>
 
         {/* Submit Button */}
-        <button
+        <Button
           type="submit"
-          disabled={isCreating}
-          className={`w-full py-2 px-4 rounded-lg text-white font-medium
-            ${isCreating
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700'
-            }
-          `}
+          disabled={isSubmitting || (!caption.trim() && !media)}
+          isLoading={isSubmitting}
+          className="w-full"
         >
-          {isCreating ? (
-            <div className="flex items-center justify-center">
-              <svg
-                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              Creating Post...
-            </div>
-          ) : 'Create Post'}
-        </button>
+          {isSubmitting ? 'Creating Post...' : 'Create Post'}
+        </Button>
       </form>
     </div>
   );

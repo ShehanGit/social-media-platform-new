@@ -1,16 +1,20 @@
-// src/pages/Home.tsx
-import { useState } from 'react';
+import React, { useState } from 'react';
 import PostList from '../components/post/PostList';
-import PostCreate from '../components/post/PostCard';
+import PostCreate from '../components/post/PostCreate';
 import { withAuth } from '../contexts/AuthContext';
-import React from 'react';
 
-const Home = () => {
+const Home: React.FC = () => {
   const [sortBy, setSortBy] = useState<'createdAt' | 'likes'>('createdAt');
+  const [key, setKey] = useState(0); // Used to force PostList re-render
+
+  const handlePostCreated = () => {
+    // Force PostList to refresh by updating its key
+    setKey(prev => prev + 1);
+  };
 
   return (
     <div className="space-y-6">
-      {/* <PostCreate post={undefined} /> */}
+      <PostCreate onPostCreated={handlePostCreated} />
       
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Feed</h1>
@@ -24,7 +28,7 @@ const Home = () => {
         </select>
       </div>
 
-      <PostList sortBy={sortBy} />
+      <PostList key={key} sortBy={sortBy} />
     </div>
   );
 };

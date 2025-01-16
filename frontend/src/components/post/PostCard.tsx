@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { HeartIcon, ChatBubbleLeftIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect } from 'react';
+import { HeartIcon, ChatBubbleLeftIcon, TrashIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { useAuth } from '../../contexts/AuthContext';
-import { Post } from '../../types';
+import { Post, Comment } from '../../types';
+import { commentsAPI } from '../../api/comments';
 import { likesAPI } from '../../api/likes';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -13,18 +14,116 @@ interface PostCardProps {
   onDelete?: (postId: number) => void;
 }
 
+interface CommentState {
+  content: Comment[];
+  page: number;
+  hasMore: boolean;
+  isLoading: boolean;
+}
+
 const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
   const { user: currentUser } = useAuth();
-  const [isLiked, setIsLiked] = useState(post.likesCount > 0);
-  const [likesCount, setLikesCount] = useState(post.likesCount || 0);
-  const [showComments, setShowComments] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  const [isLiked, setIsLiked] = useState<boolean>(false);
+  const [likesCount, setLikesCount] = useState<number>(post.likesCount || 0);
 
-  const getMediaUrl = (path: string | null) => {
-    if (!path) return '/default-avatar.png';
-    // Ensure the path starts with /media if it doesn't already
-    const cleanPath = path.startsWith('/media') ? path : `/media${path}`;
-    return `http://localhost:8080${cleanPath}`;
+  // Check initial like status
+  useEffect(() => {
+    const checkLikeStatus = async () => {
+      try {
+        const response = await likesAPI.getLikeStatus(post.id);
+        setIsLiked(response.liked);
+        setLikesCount(response.likeCount);
+      } catch (error) {
+        console.error('Failed to get like status:', error);
+      }
+    };
+    checkLikeStatus();
+  }, [post.id]);
+  const [showComments, setShowComments] = useState<boolean>(false);
+  const [imageError, setImageError] = useState<boolean>(false);
+  const [newComment, setNewComment] = useState<string>('');
+  
+  const [commentState, setCommentState] = useState<CommentState>({
+    content: [],
+    page: 0,
+    hasMore: true,
+    isLoading: false
+  });
+  const [commentCount, setCommentCount] = useState<number>(0);
+
+  const fetchCommentCount = async () => {
+    try {
+      const response = await commentsAPI.getCommentCount(post.id);
+      setCommentCount(response.count);
+    } catch (error) {
+      console.error('Failed to get comment count:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchCommentCount();
+  }, [post.id]);
+
+  const loadComments = async () => {
+    try {
+      setCommentState(prev => ({ ...prev, isLoading: true }));
+      const response = await commentsAPI.getComments(post.id, commentState.page);
+      
+      setCommentState(prev => ({
+        content: prev.page === 0 ? response.content : [...prev.content, ...response.content],
+        page: prev.page,
+        hasMore: !response.last,
+        isLoading: false
+      }));
+    } catch (error) {
+      toast.error('Failed to load comments');
+      setCommentState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const handleShowComments = () => {
+    if (!showComments) {
+      setShowComments(true);
+      loadComments();
+    } else {
+      setShowComments(false);
+    }
+  };
+
+  const handleLoadMoreComments = () => {
+    setCommentState(prev => ({ ...prev, page: prev.page + 1 }));
+  };
+
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+
+    try {
+      const response = await commentsAPI.createComment(post.id, newComment);
+      setCommentState(prev => ({
+        ...prev,
+        content: [response, ...prev.content]
+      }));
+      setNewComment('');
+      await fetchCommentCount(); // Refresh comment count
+      toast.success('Comment added successfully');
+    } catch (error) {
+      toast.error('Failed to add comment');
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    try {
+      await commentsAPI.deleteComment(commentId);
+      setCommentState(prev => ({
+        ...prev,
+        content: prev.content.filter(comment => comment.id !== commentId)
+      }));
+      await fetchCommentCount(); // Refresh comment count
+      toast.success('Comment deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete comment');
+    }
   };
 
   const handleLike = async () => {
@@ -37,29 +136,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
     }
   };
 
-  const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this post?')) {
-      try {
-        if (onDelete) {
-          await onDelete(post.id);
-          toast.success('Post deleted successfully');
-        }
-      } catch (error) {
-        toast.error('Failed to delete post');
-      }
-    }
+  const getMediaUrl = (path: string | null): string => {
+    if (!path) return '/default-avatar.png';
+    const cleanPath = path.startsWith('/media') ? path : `/media${path}`;
+    return `http://localhost:8080${cleanPath}`;
   };
-
-  // Format the caption by removing quotes if they exist
-  const formattedCaption = post.caption.replace(/^"|"$/g, '');
-
-  if (!post.user) {
-    return (
-      <div className="bg-white rounded-lg shadow-md p-4">
-        <p className="text-gray-500">Post data unavailable</p>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden my-4">
@@ -68,11 +149,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
         <div className="flex items-center space-x-3">
           <img
             src={getMediaUrl(post.user.profilePictureUrl)}
-            alt={post.user.username || 'User'}
-            className="h-10 w-10 rounded-full object-cover bg-gray-100"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = '/default-avatar.png';
+            alt={post.user.username}
+            className="h-10 w-10 rounded-full object-cover"
+            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+              e.currentTarget.src = '/default-avatar.png';
             }}
           />
           <div>
@@ -82,9 +162,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
             </p>
           </div>
         </div>
-        {currentUser?.id === post.user.id && (
+        {currentUser?.id === post.user.id && onDelete && (
           <button
-            onClick={handleDelete}
+            onClick={() => onDelete(post.id)}
             className="text-gray-400 hover:text-red-500 transition-colors"
           >
             <TrashIcon className="h-5 w-5" />
@@ -95,21 +175,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
       {/* Post Media */}
       {post.mediaUrl && !imageError && (
         <div className="relative w-full" style={{ paddingBottom: '100%' }}>
-          {post.mediaType === 'IMAGE' ? (
-            <img
-              src={getMediaUrl(post.mediaUrl)}
-              alt="Post content"
-              className="absolute inset-0 w-full h-full object-cover"
-              onError={() => setImageError(true)}
-            />
-          ) : post.mediaType === 'VIDEO' ? (
-            <video
-              src={getMediaUrl(post.mediaUrl)}
-              controls
-              className="absolute inset-0 w-full h-full object-cover"
-              onError={() => setImageError(true)}
-            />
-          ) : null}
+          <img
+            src={getMediaUrl(post.mediaUrl)}
+            alt="Post content"
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={() => setImageError(true)}
+          />
         </div>
       )}
 
@@ -118,7 +189,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
         <div className="flex items-center space-x-4 mb-4">
           <button
             onClick={handleLike}
-            className="flex items-center space-x-1 text-gray-600 hover:text-red-500 transition-colors"
+            className="flex items-center space-x-1 text-gray-600 hover:text-red-500"
           >
             {isLiked ? (
               <HeartIconSolid className="h-6 w-6 text-red-500" />
@@ -128,32 +199,74 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
             <span>{likesCount}</span>
           </button>
           <button
-            onClick={() => setShowComments(!showComments)}
-            className="flex items-center space-x-1 text-gray-600 hover:text-blue-500 transition-colors"
+            onClick={handleShowComments}
+            className="flex items-center space-x-1 text-gray-600 hover:text-blue-500"
           >
             <ChatBubbleLeftIcon className="h-6 w-6" />
-            <span>{post.commentsCount || 0}</span>
+            <span>{commentCount}</span>
           </button>
         </div>
 
         {/* Caption */}
-        <p className="text-gray-800">{formattedCaption}</p>
-      </div>
+        <p className="text-gray-800">{post.caption}</p>
 
-      {/* Comments Section */}
-      {showComments && (
-        <div className="px-4 pb-4">
-          <div className="border-t pt-4">
-            <p className="text-gray-500 text-sm">
-              {post.commentsCount === 0 
-                ? 'No comments yet' 
-                : `${post.commentsCount} comment${post.commentsCount === 1 ? '' : 's'}`
-              }
-            </p>
-            {/* Comments would be rendered here when implemented */}
+        {/* Comments Section */}
+        {showComments && (
+          <div className="mt-4 space-y-4">
+            {/* Comment Form */}
+            <form onSubmit={handleSubmitComment} className="flex space-x-2">
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Add a comment..."
+                className="flex-1 rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <button
+                type="submit"
+                className="p-2 text-blue-500 hover:text-blue-600"
+                disabled={!newComment.trim()}
+              >
+                <PaperAirplaneIcon className="h-5 w-5" />
+              </button>
+            </form>
+
+            {/* Comments List */}
+            <div className="space-y-3">
+              {commentState.content.map((comment) => (
+                <div key={comment.id} className="flex justify-between items-start">
+                  <div>
+                    <p className="font-medium text-sm">{comment.userName}</p>
+                    <p className="text-gray-600">{comment.content}</p>
+                    <p className="text-xs text-gray-400">
+                      {format(new Date(comment.createdAt), 'MMM d, yyyy')}
+                    </p>
+                  </div>
+                  {comment.isAuthor && (
+                    <button
+                      onClick={() => handleDeleteComment(comment.id)}
+                      className="text-gray-400 hover:text-red-500"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Load More Comments */}
+            {commentState.hasMore && (
+              <button
+                onClick={handleLoadMoreComments}
+                className="w-full text-blue-500 hover:text-blue-600 text-sm font-medium py-2"
+                disabled={commentState.isLoading}
+              >
+                {commentState.isLoading ? 'Loading...' : 'Load more comments'}
+              </button>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

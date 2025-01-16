@@ -90,7 +90,7 @@ const Profile: React.FC = () => {
           
           <div className="flex-1">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold">{user.username}</h1>
+              <h1 className="text-2xl font-bold">{user.firstname} {user.lastname}</h1>
               {currentUser?.id !== user.id && (
                 <Button
                   onClick={handleFollowToggle}
@@ -102,7 +102,7 @@ const Profile: React.FC = () => {
             </div>
             
             <div className="text-gray-600 space-y-2">
-              <p className="font-medium">{user.firstname} {user.lastname}</p>
+              <p className="font-medium">{user.username}</p>
               {user.bio && <p>{user.bio}</p>}
               
               {user.website && (
