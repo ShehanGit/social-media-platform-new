@@ -4,6 +4,8 @@ import com.socialmedia.dto.PostDto;
 import com.socialmedia.dto.PostResponse;
 import com.socialmedia.model.Post;
 import com.socialmedia.service.PostService;
+import com.socialmedia.user.User;
+import com.socialmedia.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,6 +24,7 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class PostController {
     private final PostService postService;
+    private final UserRepository userRepository;
 
     @PostMapping(consumes = { "multipart/form-data" })
     public ResponseEntity<Post> createPost(
@@ -34,29 +37,56 @@ public class PostController {
     }
 
     @GetMapping("/{postId}")
-    public ResponseEntity<Post> getPost(@PathVariable Long postId) {
+    public ResponseEntity<Post> getPost(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
         return ResponseEntity.ok(postService.getPost(postId));
     }
 
     @GetMapping
-    public ResponseEntity<Page<PostResponse>> getAllPosts(
+    public ResponseEntity<Page<PostResponse>> getFeedPosts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User currentUser = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(sortBy).descending());
+        return ResponseEntity.ok(postService.getFeedPosts(currentUser, pageRequest));
+    }
+
+    @GetMapping("/explore")
+    public ResponseEntity<Page<PostResponse>> getExplorePosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy
     ) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(sortBy).descending());
-        return ResponseEntity.ok(postService.getAllPosts(pageRequest));
+        return ResponseEntity.ok(postService.getExplorePosts(pageRequest));
     }
 
     @GetMapping("/by-likes")
-    public ResponseEntity<Page<PostResponse>> getPostsByLikes(
+    public ResponseEntity<Page<PostResponse>> getFeedPostsByLikes(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        User currentUser = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        PageRequest pageRequest = PageRequest.of(page, size);
+        return ResponseEntity.ok(postService.getFeedPostsByLikes(currentUser, pageRequest));
+    }
+
+    @GetMapping("/explore/by-likes")
+    public ResponseEntity<Page<PostResponse>> getExplorePostsByLikes(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         PageRequest pageRequest = PageRequest.of(page, size);
-        return ResponseEntity.ok(postService.getPostsByLikes(pageRequest));
+        return ResponseEntity.ok(postService.getExplorePostsByLikes(pageRequest));
     }
-
 
     @GetMapping("/user")
     public ResponseEntity<Page<PostResponse>> getUserPosts(
@@ -69,8 +99,6 @@ public class PostController {
         Page<PostResponse> postResponses = userPosts.map(this::convertToPostResponse);
         return ResponseEntity.ok(postResponses);
     }
-
-
 
     private PostResponse convertToPostResponse(Post post) {
         return PostResponse.builder()

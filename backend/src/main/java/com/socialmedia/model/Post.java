@@ -18,7 +18,13 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "posts")
+@Table(name = "posts",
+        indexes = {
+                @Index(name = "idx_post_created_at", columnList = "createdAt DESC"),
+                @Index(name = "idx_post_user", columnList = "user_id"),
+                @Index(name = "idx_post_user_created", columnList = "user_id, createdAt DESC")
+        }
+)
 @JsonIdentityInfo(
         generator = ObjectIdGenerators.PropertyGenerator.class,
         property = "id")
@@ -49,6 +55,7 @@ public class Post {
     @JsonManagedReference
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL)
     private List<Comment> comments;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

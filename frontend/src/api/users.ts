@@ -35,8 +35,7 @@ export const usersAPI = {
     const response = await api.put<User>('/users/me', updateData);
     return response.data;
   },
-
-  searchUsers: async (
+searchUsers: async (
     query: string, 
     page: number = 0, 
     size: number = 20

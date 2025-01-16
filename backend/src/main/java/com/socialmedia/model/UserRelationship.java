@@ -14,7 +14,13 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @Table(name = "user_relationships",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"follower_id", "following_id"}))
+        uniqueConstraints = @UniqueConstraint(columnNames = {"follower_id", "following_id"}),
+        indexes = {
+                @Index(name = "idx_relationship_follower", columnList = "follower_id"),
+                @Index(name = "idx_relationship_following", columnList = "following_id"),
+                @Index(name = "idx_relationship_status", columnList = "follower_id, following_id, status, isBlocked")
+        }
+)
 public class UserRelationship {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -56,7 +62,6 @@ public class UserRelationship {
         }
     }
 
-    // Helper methods
     public boolean isActive() {
         return status == RelationshipStatus.ACCEPTED && !isBlocked;
     }

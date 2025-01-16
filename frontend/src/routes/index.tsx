@@ -1,16 +1,14 @@
-// src/routes/index.tsx
 import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
-import Profile from '../pages/Profile';
+import UserProfile from '../components/user/UserProfile';
 import { useAuth } from '../hooks/useAuth';
 import React from 'react';
 
 const AppRoutes = () => {
-  const { isAuthenticated } = useAuth() as any;
-  console.log(isAuthenticated);
+  const { isAuthenticated } = useAuth() ?? { isAuthenticated: false };
 
   return (
     <Routes>
@@ -27,8 +25,8 @@ const AppRoutes = () => {
       {/* Protected routes */}
       <Route path="/" element={<MainLayout />}>
         <Route index element={<Home />} />
-        <Route path="profile" element={<Profile />} />
-        <Route path="profile/:username" element={<Profile />} />
+        <Route path="profile" element={<UserProfile />} />
+        <Route path="profile/:username" element={<UserProfile />} />
       </Route>
 
       {/* Catch all route */}

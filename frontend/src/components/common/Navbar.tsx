@@ -22,7 +22,9 @@ interface SearchResult {
 }
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const auth = useAuth();
+  const user = auth?.user;
+  const logout = auth?.logout;
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -48,7 +50,13 @@ const Navbar = () => {
         setIsSearching(true);
         try {
           const response = await usersAPI.searchUsers(debouncedSearch);
-          setSearchResults(response.content);
+          setSearchResults(response.content.map(user => ({
+            id: user.id,
+            username: user.username || '',
+            firstname: user.firstname || '',
+            lastname: user.lastname || '',
+            profilePictureUrl: user.profilePictureUrl
+          })));
           setShowResults(true);
         } catch (error) {
           console.error('Search failed:', error);
@@ -129,7 +137,7 @@ const Navbar = () => {
                       >
                         {searchUser.profilePictureUrl ? (
                           <img
-                            src={searchUser.profilePictureUrl}
+                            src={"http://localhost:8080" + searchUser.profilePictureUrl}
                             alt={searchUser.username}
                             className="h-10 w-10 rounded-full object-cover"
                           />
@@ -137,10 +145,8 @@ const Navbar = () => {
                           <UserCircleIcon className="h-10 w-10 text-gray-400" />
                         )}
                         <div className="ml-3">
-                          <p className="font-medium">{searchUser.username}</p>
-                          <p className="text-sm text-gray-500">
-                            {searchUser.firstname} {searchUser.lastname}
-                          </p>
+                          <p className="font-medium">{searchUser.firstname} {searchUser.lastname}</p>
+                          
                         </div>
                       </div>
                     ))
@@ -197,7 +203,7 @@ const Navbar = () => {
                     <Menu.Item>
                       {({ active }) => (
                         <button
-                          onClick={() => logout()}
+                          onClick={() => logout && logout()}
                           className={`${
                             active ? 'bg-gray-100' : ''
                           } block w-full text-left px-4 py-2 text-sm text-gray-700`}

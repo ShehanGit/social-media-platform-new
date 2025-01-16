@@ -67,13 +67,27 @@ public class PostService {
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
     }
 
-    public Page<PostResponse> getAllPosts(Pageable pageable) {
-        Page<Post> posts = postRepository.findAllByOrderByCreatedAtDesc(pageable);
+    // Get feed posts (from followed users) ordered by creation date
+    public Page<PostResponse> getFeedPosts(User currentUser, Pageable pageable) {
+        Page<Post> posts = postRepository.findFollowedUsersPosts(currentUser, pageable);
         return posts.map(this::convertToPostResponse);
     }
 
-    public Page<PostResponse> getPostsByLikes(Pageable pageable) {
-        Page<Post> posts = postRepository.findAllByOrderByLikesDesc(pageable);
+    // Get explore posts (all posts) ordered by creation date
+    public Page<PostResponse> getExplorePosts(Pageable pageable) {
+        Page<Post> posts = postRepository.findAllPostsOrderByCreatedAtDesc(pageable);
+        return posts.map(this::convertToPostResponse);
+    }
+
+    // Get feed posts ordered by likes
+    public Page<PostResponse> getFeedPostsByLikes(User currentUser, Pageable pageable) {
+        Page<Post> posts = postRepository.findFollowedUsersPostsByLikes(currentUser, pageable);
+        return posts.map(this::convertToPostResponse);
+    }
+
+    // Get explore posts ordered by likes
+    public Page<PostResponse> getExplorePostsByLikes(Pageable pageable) {
+        Page<Post> posts = postRepository.findAllPostsOrderByLikesDesc(pageable);
         return posts.map(this::convertToPostResponse);
     }
 
