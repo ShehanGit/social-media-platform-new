@@ -11,3 +11,5 @@ export const useAuth = () => {
   
   return context;
 };
+
+// User state, Authentication methods, Loading states, Error handling
