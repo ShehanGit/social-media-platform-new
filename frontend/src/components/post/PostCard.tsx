@@ -1,13 +1,12 @@
-import { useState, useEffect } from 'react';
-import { HeartIcon, ChatBubbleLeftIcon, TrashIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import React, { useState, useEffect } from 'react';
+import { HeartIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
+import { format } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
 import { Post, Comment } from '../../types';
 import { commentsAPI } from '../../api/comments';
 import { likesAPI } from '../../api/likes';
-import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import React from 'react';
 
 interface PostCardProps {
   post: Post;
@@ -22,13 +21,10 @@ interface CommentState {
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
-  console.log('PostCard rendering with post:', post);
-
   const { user: currentUser } = useAuth();
   const [isLiked, setIsLiked] = useState<boolean>(false);
   const [likesCount, setLikesCount] = useState<number>(post.likesCount || 0);
   const [showComments, setShowComments] = useState<boolean>(false);
-  const [imageError, setImageError] = useState<boolean>(false);
   const [newComment, setNewComment] = useState<string>('');
   const [commentState, setCommentState] = useState<CommentState>({
     content: [],
@@ -36,7 +32,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
     hasMore: true,
     isLoading: false
   });
-  const [commentCount, setCommentCount] = useState<number>(0);
+  const [commentCount, setCommentCount] = useState<number>(post.commentsCount || 0);
+  const [imageError, setImageError] = useState<boolean>(false);
 
   useEffect(() => {
     const checkLikeStatus = async () => {
@@ -51,80 +48,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
     checkLikeStatus();
   }, [post.id]);
 
-  const fetchCommentCount = async () => {
-    try {
-      const response = await commentsAPI.getCommentCount(post.id);
-      setCommentCount(response.count);
-    } catch (error) {
-      console.error('Failed to get comment count:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchCommentCount();
-  }, [post.id]);
-
-  const loadComments = async () => {
-    try {
-      setCommentState(prev => ({ ...prev, isLoading: true }));
-      const response = await commentsAPI.getComments(post.id, commentState.page);
-      setCommentState(prev => ({
-        content: prev.page === 0 ? response.content : [...prev.content, ...response.content],
-        page: prev.page,
-        hasMore: !response.last,
-        isLoading: false
-      }));
-    } catch (error) {
-      console.error('Failed to load comments:', error);
-      setCommentState(prev => ({ ...prev, isLoading: false }));
-    }
-  };
-
-  const handleShowComments = () => {
-    if (!showComments) {
-      setShowComments(true);
-      loadComments();
-    } else {
-      setShowComments(false);
-    }
-  };
-
-  const handleLoadMoreComments = () => {
-    setCommentState(prev => ({ ...prev, page: prev.page + 1 }));
-  };
-
-  const handleSubmitComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-
-    try {
-      const response = await commentsAPI.createComment(post.id, newComment);
-      setCommentState(prev => ({
-        ...prev,
-        content: [response, ...prev.content]
-      }));
-      setNewComment('');
-      await fetchCommentCount();
-      toast.success('Comment added successfully');
-    } catch (error) {
-      toast.error('Failed to add comment');
-    }
-  };
-
-  const handleDeleteComment = async (commentId: number) => {
-    try {
-      await commentsAPI.deleteComment(commentId);
-      setCommentState(prev => ({
-        ...prev,
-        content: prev.content.filter(comment => comment.id !== commentId)
-      }));
-      await fetchCommentCount();
-      toast.success('Comment deleted successfully');
-    } catch (error) {
-      toast.error('Failed to delete comment');
-    }
-  };
-
   const handleLike = async () => {
     try {
       const response = await likesAPI.toggleLike(post.id);
@@ -135,142 +58,151 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
     }
   };
 
-  const getMediaUrl = (path: string | null): string => {
-    if (!path) return '/default-avatar.png';
-    const cleanPath = path.startsWith('/media') ? path : `/media${path}`;
-    return `http://localhost:8080${cleanPath}`;
+  const loadComments = async () => {
+    try {
+      setCommentState(prev => ({ ...prev, isLoading: true }));
+      const response = await commentsAPI.getComments(post.id, commentState.page);
+      
+      setCommentState(prev => ({
+        content: commentState.page === 0 ? response.content : [...prev.content, ...response.content],
+        page: prev.page + 1,
+        hasMore: !response.last,
+        isLoading: false
+      }));
+      setCommentCount(response.totalElements);
+    } catch (error) {
+      console.error('Failed to load comments:', error);
+      setCommentState(prev => ({ ...prev, isLoading: false }));
+    }
   };
 
-  // Early return if post or user data is missing
-  if (!post || !post.user) {
-    console.error('Missing post or user data:', post);
-    return null;
-  }
+  const handleViewComments = () => {
+    setShowComments(!showComments);
+    if (!showComments && commentState.content.length === 0) {
+      loadComments();
+    }
+  };
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+
+    try {
+      const response = await commentsAPI.createComment(post.id, newComment.trim());
+      setCommentState(prev => ({
+        ...prev,
+        content: [response, ...prev.content]
+      }));
+      setNewComment('');
+      setCommentCount(prev => prev + 1);
+    } catch (error) {
+      toast.error('Failed to add comment');
+    }
+  };
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden my-4">
-      {/* Post Header */}
-      <div className="p-4 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <img
-            src={getMediaUrl(post.user.profilePictureUrl)}
-            alt="Profile"
-            className="h-10 w-10 rounded-full object-cover bg-gray-200"
-            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-              e.currentTarget.src = '/default-avatar.png';
-            }}
-          />
-          <div>
-            <p className="font-semibold text-gray-900">
-              {post.user.firstname} {post.user.lastname}
-            </p>
-            <p className="text-xs text-gray-500">
-              {format(new Date(post.createdAt), 'MMM d, yyyy')}
-            </p>
-          </div>
-        </div>
-        {currentUser?.id === post.user.id && onDelete && (
-          <button
-            onClick={() => onDelete(post.id)}
-            className="text-gray-400 hover:text-red-500 transition-colors"
-          >
-            <TrashIcon className="h-5 w-5" />
-          </button>
-        )}
-      </div>
-
-      {/* Post Media */}
+    <div className="bg-white rounded-lg overflow-hidden shadow-sm mb-4">
+      {/* Image */}
       {post.mediaUrl && !imageError && (
-        <div className="relative w-full bg-gray-100" style={{ paddingBottom: '100%' }}>
+        <div className="relative aspect-square">
           <img
-            src={getMediaUrl(post.mediaUrl)}
+            src={`http://localhost:8080${post.mediaUrl}`}
             alt="Post content"
-            className="absolute inset-0 w-full h-full object-cover"
+            className="w-full h-full object-cover"
             onError={() => setImageError(true)}
           />
         </div>
       )}
 
-      {/* Post Actions */}
-      <div className="p-4">
-        <div className="flex items-center space-x-4 mb-4">
-          <button
-            onClick={handleLike}
-            className="flex items-center space-x-1 text-gray-600 hover:text-red-500 transition-colors"
-          >
+      {/* Actions */}
+      <div className="px-4 py-2">
+        <div className="flex space-x-4">
+          <button onClick={handleLike} className="focus:outline-none">
             {isLiked ? (
               <HeartIconSolid className="h-6 w-6 text-red-500" />
             ) : (
               <HeartIcon className="h-6 w-6" />
             )}
-            <span>{likesCount}</span>
           </button>
-          <button
-            onClick={handleShowComments}
-            className="flex items-center space-x-1 text-gray-600 hover:text-blue-500 transition-colors"
-          >
+          <button onClick={handleViewComments} className="focus:outline-none">
             <ChatBubbleLeftIcon className="h-6 w-6" />
-            <span>{commentCount}</span>
           </button>
         </div>
+      </div>
 
-        {/* Caption */}
-        <p className="text-gray-800 whitespace-pre-wrap">{post.caption}</p>
+      {/* Likes and Comments Count */}
+      <div className="px-4 py-1 text-sm">
+        <div className="flex justify-between items-center">
+          <div className="flex space-x-4">
+            <span>{likesCount} likes</span>
+            <span>{commentCount} comments</span>
+          </div>
+        </div>
+      </div>
 
-        {/* Comments Section */}
-        {showComments && (
-          <div className="mt-4 space-y-4">
-            <form onSubmit={handleSubmitComment} className="flex space-x-2">
-              <input
-                type="text"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
-                className="flex-1 rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <button
-                type="submit"
-                className="p-2 text-blue-500 hover:text-blue-600 disabled:opacity-50"
-                disabled={!newComment.trim()}
-              >
-                <PaperAirplaneIcon className="h-5 w-5" />
-              </button>
-            </form>
+      {/* Username and Caption */}
+      <div className="px-4 py-1">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm flex-grow text-center font-medium">
+            {`${post.user.firstname} ${post.user.lastname}`}
+          </span>
+          <span className="text-sm text-gray-500">
+            {format(new Date(post.createdAt), 'MMM d')}
+          </span>
+        </div>
+        {post.caption && (
+          <p className="text-sm mt-1">
+            {post.caption}
+          </p>
+        )}
+      </div>
 
-            <div className="space-y-3">
-              {commentState.content.map((comment) => (
-                <div key={comment.id} className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium text-sm">{comment.userName}</p>
-                    <p className="text-gray-600">{comment.content}</p>
-                    <p className="text-xs text-gray-400">
-                      {format(new Date(comment.createdAt), 'MMM d, yyyy')}
-                    </p>
-                  </div>
-                  {comment.isAuthor && (
-                    <button
-                      onClick={() => handleDeleteComment(comment.id)}
-                      className="text-gray-400 hover:text-red-500"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
+      {/* Comments Section */}
+      {showComments && (
+        <div className="px-4 py-2 border-t">
+          <div className="max-h-48 overflow-y-auto space-y-2">
+            {commentState.content.map((comment) => (
+              <div key={comment.id} className="text-sm">
+                <span className="font-medium mr-2">
+                  {comment.userName.includes('@') 
+                    ? comment.userName.split('@')[0] 
+                    : comment.userName}
+                </span>
+                {comment.content}
+              </div>
+            ))}
             {commentState.hasMore && (
               <button
-                onClick={handleLoadMoreComments}
-                className="w-full text-blue-500 hover:text-blue-600 text-sm font-medium py-2"
+                onClick={loadComments}
+                className="text-gray-500 text-sm w-full text-center py-2"
                 disabled={commentState.isLoading}
               >
-                {commentState.isLoading ? 'Loading...' : 'Load more comments'}
+                {commentState.isLoading ? 'Loading...' : 'View more comments'}
               </button>
             )}
           </div>
-        )}
-      </div>
+
+          {/* Comment Input */}
+          <form onSubmit={handleAddComment} className="mt-3 flex items-center">
+            <input
+              type="text"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="flex-1 text-sm border-none focus:ring-0 focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={!newComment.trim()}
+              className={`ml-2 text-blue-500 font-semibold text-sm ${
+                !newComment.trim() ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              Post
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

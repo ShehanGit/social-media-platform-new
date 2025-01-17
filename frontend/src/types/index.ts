@@ -19,6 +19,7 @@ export interface Post {
   createdAt: string;
   updatedAt: string;
   user: {
+    email: string;
     id: number;
     username: string;
     firstname?: string;
