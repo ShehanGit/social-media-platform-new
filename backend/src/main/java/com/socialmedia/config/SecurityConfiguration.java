@@ -15,7 +15,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 import java.util.Arrays;
-
+//Main security configuration,
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -30,7 +30,7 @@ public class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
+                        .requestMatchers(//Public and protected endpoints
                                 "/api/v1/auth/**",
                                 "/media/**",
                                 "/uploads/**",

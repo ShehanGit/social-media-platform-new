@@ -1,8 +1,5 @@
 package com.socialmedia.config;
 
-
-
-
 import com.socialmedia.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -27,7 +24,7 @@ public class ApplicationConfig {
     return username -> repository.findByEmail(username)
         .orElseThrow(() -> new UsernameNotFoundException("User  not  found"));
   }
-
+  //password encoding
   @Bean
   public AuthenticationProvider authenticationProvider() {
     DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -35,7 +32,7 @@ public class ApplicationConfig {
     authProvider.setPasswordEncoder(passwordEncoder());
     return authProvider;
   }
-
+//authentication handling
   @Bean
   public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
     return config.getAuthenticationManager();

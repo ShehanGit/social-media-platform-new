@@ -15,7 +15,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-
+//Intercepts all HTTP requests, Validates JWT tokens
 @Service
 public class JwtService {
 
