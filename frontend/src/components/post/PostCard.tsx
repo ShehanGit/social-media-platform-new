@@ -13,27 +13,14 @@ interface PostCardProps {
   onDelete?: (postId: number) => void;
 }
 
-interface CommentState {
-  content: Comment[];
-  page: number;
-  hasMore: boolean;
-  isLoading: boolean;
-}
-
 const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
-  const { user: currentUser } = useAuth();
   const [isLiked, setIsLiked] = useState<boolean>(false);
   const [likesCount, setLikesCount] = useState<number>(post.likesCount || 0);
   const [showComments, setShowComments] = useState<boolean>(false);
   const [newComment, setNewComment] = useState<string>('');
-  const [commentState, setCommentState] = useState<CommentState>({
-    content: [],
-    page: 0,
-    hasMore: true,
-    isLoading: false
-  });
   const [commentCount, setCommentCount] = useState<number>(post.commentsCount || 0);
   const [imageError, setImageError] = useState<boolean>(false);
+  const [comments, setComments] = useState<Comment[]>([]);
 
   useEffect(() => {
     const checkLikeStatus = async () => {
@@ -58,51 +45,36 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
     }
   };
 
-  const loadComments = async () => {
-    try {
-      setCommentState(prev => ({ ...prev, isLoading: true }));
-      const response = await commentsAPI.getComments(post.id, commentState.page);
-      
-      setCommentState(prev => ({
-        content: commentState.page === 0 ? response.content : [...prev.content, ...response.content],
-        page: prev.page + 1,
-        hasMore: !response.last,
-        isLoading: false
-      }));
-      setCommentCount(response.totalElements);
-    } catch (error) {
-      console.error('Failed to load comments:', error);
-      setCommentState(prev => ({ ...prev, isLoading: false }));
-    }
-  };
-
-  const handleViewComments = () => {
-    setShowComments(!showComments);
-    if (!showComments && commentState.content.length === 0) {
-      loadComments();
-    }
-  };
-
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
     try {
       const response = await commentsAPI.createComment(post.id, newComment.trim());
-      setCommentState(prev => ({
-        ...prev,
-        content: [response, ...prev.content]
-      }));
-      setNewComment('');
+      setComments(prev => [response, ...prev]);
       setCommentCount(prev => prev + 1);
+      setNewComment('');
     } catch (error) {
       toast.error('Failed to add comment');
     }
   };
 
+  const handleViewComments = async () => {
+    if (!showComments && comments.length === 0) {
+      try {
+        const response = await commentsAPI.getComments(post.id, 0);
+        setComments(response.content);
+        setCommentCount(response.totalElements);
+      } catch (error) {
+        console.error('Failed to load comments:', error);
+      }
+    }
+    setShowComments(!showComments);
+  };
+
   return (
-    <div className="bg-white rounded-lg overflow-hidden shadow-sm mb-4">
-      {/* Image */}
+    <div className="bg-white rounded-sm border border-gray-200 mb-4">
+      {/* Post Image */}
       {post.mediaUrl && !imageError && (
         <div className="relative aspect-square">
           <img
@@ -115,8 +87,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
       )}
 
       {/* Actions */}
-      <div className="px-4 py-2">
-        <div className="flex space-x-4">
+      <div className="px-4 pt-2 pb-1">
+        <div className="flex items-center space-x-2">
           <button onClick={handleLike} className="focus:outline-none">
             {isLiked ? (
               <HeartIconSolid className="h-6 w-6 text-red-500" />
@@ -131,21 +103,17 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
       </div>
 
       {/* Likes and Comments Count */}
-      <div className="px-4 py-1 text-sm">
-        <div className="flex justify-between items-center">
-          <div className="flex space-x-4">
-            <span>{likesCount} likes</span>
-            <span>{commentCount} comments</span>
-          </div>
-        </div>
+      <div className="px-4 py-1 flex items-center space-x-4 text-sm">
+        <span>{likesCount} likes</span>
+        <span>{commentCount} comments</span>
       </div>
 
-      {/* Username and Caption */}
-      <div className="px-4 py-1">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-sm flex-grow text-center font-medium">
+      {/* Username and Content */}
+      <div className="px-4 pb-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-medium text-center flex-grow">
             {`${post.user.firstname} ${post.user.lastname}`}
-          </span>
+          </h3>
           <span className="text-sm text-gray-500">
             {format(new Date(post.createdAt), 'MMM d')}
           </span>
@@ -159,30 +127,18 @@ const PostCard: React.FC<PostCardProps> = ({ post, onDelete }) => {
 
       {/* Comments Section */}
       {showComments && (
-        <div className="px-4 py-2 border-t">
-          <div className="max-h-48 overflow-y-auto space-y-2">
-            {commentState.content.map((comment) => (
-              <div key={comment.id} className="text-sm">
-                <span className="font-medium mr-2">
-                  {comment.userName.includes('@') 
-                    ? comment.userName.split('@')[0] 
-                    : comment.userName}
-                </span>
-                {comment.content}
-              </div>
-            ))}
-            {commentState.hasMore && (
-              <button
-                onClick={loadComments}
-                className="text-gray-500 text-sm w-full text-center py-2"
-                disabled={commentState.isLoading}
-              >
-                {commentState.isLoading ? 'Loading...' : 'View more comments'}
-              </button>
-            )}
-          </div>
+        <div className="px-4 py-3 border-t border-gray-100">
+          {comments.map((comment) => (
+            <div key={comment.id} className="text-sm mb-2">
+              <span className="font-medium mr-2">
+                {comment.userName.includes('@') 
+                  ? comment.userName.split('@')[0] 
+                  : comment.userName}
+              </span>
+              {comment.content}
+            </div>
+          ))}
 
-          {/* Comment Input */}
           <form onSubmit={handleAddComment} className="mt-3 flex items-center">
             <input
               type="text"
