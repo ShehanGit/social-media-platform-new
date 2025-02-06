@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, Transition } from '@headlessui/react';
 import { 
@@ -8,30 +8,32 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import { useAuth } from '../../hooks/useAuth';
-import { usersAPI } from '../../api/users';
-import { useDebounce } from '../../hooks/useDebounce';
+import { useAuth } from '../../contexts/AuthContext';
+import { useSearchUsers } from '../../hooks/useSearchUsers';
 import { User } from '../../types';
 
 interface SearchResult {
   id: number;
-  username: string;
-  firstname: string;
-  lastname: string;
+  email: string;
+  username: string | undefined;
+  firstname: string | undefined;
+  lastname: string | undefined;
   profilePictureUrl?: string;
 }
 
 const Navbar = () => {
-  const auth = useAuth();
-  const user = auth?.user;
-  const logout = auth?.logout;
+  const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  const {
+    searchTerm,
+    results,
+    isLoading: isSearching,
+    updateSearch,
+    clearCache
+  } = useSearchUsers();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -44,50 +46,33 @@ const Navbar = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    const searchUsers = async () => {
-      if (debouncedSearch.trim()) {
-        setIsSearching(true);
-        try {
-          const response = await usersAPI.searchUsers(debouncedSearch);
-          setSearchResults(response.content.map(user => ({
-            id: user.id,
-            username: user.username || '',
-            firstname: user.firstname || '',
-            lastname: user.lastname || '',
-            profilePictureUrl: user.profilePictureUrl
-          })));
-          setShowResults(true);
-        } catch (error) {
-          console.error('Search failed:', error);
-        } finally {
-          setIsSearching(false);
-        }
-      } else {
-        setSearchResults([]);
-        setShowResults(false);
-      }
-    };
-
-    searchUsers();
-  }, [debouncedSearch]);
-
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-    if (e.target.value.trim()) {
+    const value = e.target.value;
+    updateSearch(value);
+    if (value.trim()) {
       setShowResults(true);
+    } else {
+      setShowResults(false);
     }
   };
 
   const clearSearch = () => {
-    setSearchQuery('');
-    setSearchResults([]);
+    updateSearch('');
     setShowResults(false);
   };
 
-  const handleUserSelect = (username: string) => {
-    navigate(`/profile/${username}`);
-    clearSearch();
+  const handleUserSelect = (username: string | undefined) => {
+    if (username) {
+      navigate(`/profile/${username}`);
+      clearSearch();
+    }
+  };
+
+  const handleLogout = () => {
+    if (logout) {
+      logout();
+      navigate('/login');
+    }
   };
 
   return (
@@ -100,18 +85,18 @@ const Navbar = () => {
           </Link>
 
           {/* Search Bar */}
-          {user && (
+          {isAuthenticated && (
             <div className="relative flex-1 max-w-md mx-4" ref={searchRef}>
               <div className="relative">
                 <input
                   type="text"
-                  value={searchQuery}
+                  value={searchTerm}
                   onChange={handleSearchInputChange}
                   placeholder="Search users..."
                   className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
-                {searchQuery && (
+                {searchTerm && (
                   <button
                     onClick={clearSearch}
                     className="absolute right-3 top-2.5"
@@ -128,8 +113,8 @@ const Navbar = () => {
                     <div className="p-4 text-center text-gray-500">
                       Searching...
                     </div>
-                  ) : searchResults.length > 0 ? (
-                    searchResults.map((searchUser) => (
+                  ) : results.length > 0 ? (
+                    results.map((searchUser) => (
                       <div
                         key={searchUser.id}
                         onClick={() => handleUserSelect(searchUser.username)}
@@ -137,20 +122,28 @@ const Navbar = () => {
                       >
                         {searchUser.profilePictureUrl ? (
                           <img
-                            src={"http://localhost:8080" + searchUser.profilePictureUrl}
-                            alt={searchUser.username}
+                            src={`http://localhost:8080${searchUser.profilePictureUrl}`}
+                            alt={searchUser.username || 'User avatar'}
                             className="h-10 w-10 rounded-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = '/default-avatar.png';
+                            }}
                           />
                         ) : (
                           <UserCircleIcon className="h-10 w-10 text-gray-400" />
                         )}
                         <div className="ml-3">
-                          <p className="font-medium">{searchUser.firstname} {searchUser.lastname}</p>
-                          
+                          <p className="font-medium">
+                            {searchUser.firstname} {searchUser.lastname}
+                          </p>
+                          {searchUser.username && (
+                            <p className="text-sm text-gray-500">@{searchUser.username}</p>
+                          )}
                         </div>
                       </div>
                     ))
-                  ) : searchQuery ? (
+                  ) : searchTerm ? (
                     <div className="p-4 text-center text-gray-500">
                       No users found
                     </div>
@@ -161,24 +154,42 @@ const Navbar = () => {
           )}
 
           {/* Navigation */}
-          {user ? (
+          {isAuthenticated ? (
             <div className="flex items-center space-x-4">
+              <Link
+                to="/"
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title="Home"
+              >
+                <HomeIcon className="h-6 w-6" />
+              </Link>
               
-              
+              <Link
+                to="/create-post"
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title="Create Post"
+              >
+                <PlusIcon className="h-6 w-6" />
+              </Link>
 
               {/* Profile Menu */}
               <Menu as="div" className="relative">
                 <Menu.Button className="p-2 hover:bg-gray-100 rounded-full">
-                  {user.profilePictureUrl ? (
+                  {user?.profilePictureUrl ? (
                     <img
                       src={`http://localhost:8080${user.profilePictureUrl}`}
                       alt={user.username || ''}
                       className="h-8 w-8 rounded-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/default-avatar.png';
+                      }}
                     />
                   ) : (
                     <UserCircleIcon className="h-8 w-8" />
                   )}
                 </Menu.Button>
+
                 <Transition
                   enter="transition duration-100 ease-out"
                   enterFrom="transform scale-95 opacity-0"
@@ -203,7 +214,7 @@ const Navbar = () => {
                     <Menu.Item>
                       {({ active }) => (
                         <button
-                          onClick={() => logout && logout()}
+                          onClick={handleLogout}
                           className={`${
                             active ? 'bg-gray-100' : ''
                           } block w-full text-left px-4 py-2 text-sm text-gray-700`}

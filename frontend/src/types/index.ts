@@ -123,6 +123,32 @@ export interface PaginatedResponse<T> {
     location?: string;
   }
 
+  export interface User {
+    id: number;
+    email: string;
+    username?: string;
+    firstname?: string;
+    lastname?: string;
+    profilePictureUrl?: string;
+    bio?: string;
+    website?: string;
+    phone?: string;
+    location?: string;
+  }
+  
+  export interface PaginatedResponse<T> {
+    content: T[];
+    pageable: {
+      pageNumber: number;
+      pageSize: number;
+    };
+    last: boolean;
+    totalPages: number;
+    totalElements: number;
+  }
+
+  
+
   export const config = {
     API_URL: 'http://localhost:8080/api/v1',
     MEDIA_URL: 'http://localhost:8080'  
