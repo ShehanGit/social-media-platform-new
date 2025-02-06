@@ -6,9 +6,10 @@ import Button from '../common/Button';
 
 interface PostCreateProps {
   onPostCreated?: () => void;
+  onClose?: () => void;
 }
 
-const PostCreate: React.FC<PostCreateProps> = ({ onPostCreated }) => {
+const PostCreate: React.FC<PostCreateProps> = ({ onPostCreated, onClose }) => {
   const [caption, setCaption] = useState('');
   const [media, setMedia] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -49,6 +50,12 @@ const PostCreate: React.FC<PostCreateProps> = ({ onPostCreated }) => {
     }
   };
 
+  const resetForm = () => {
+    setCaption('');
+    clearMedia();
+    setIsSubmitting(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -67,17 +74,23 @@ const PostCreate: React.FC<PostCreateProps> = ({ onPostCreated }) => {
 
       await postsAPI.createPost(formData);
       
-      // Reset form
-      setCaption('');
-      clearMedia();
       toast.success('Post created successfully');
+      resetForm();
       
-      // Notify parent component
       if (onPostCreated) {
         onPostCreated();
       }
-    } catch (error) {
-      toast.error('Failed to create post');
+
+      if (onClose) {
+        onClose();
+      }
+    } catch (error: any) {
+      // Handle moderation errors and other errors
+      if (error.response?.data?.message) {
+        toast.error(`Failed to create post: ${error.response.data.message}`);
+      } else {
+        toast.error('Failed to create post. Please try again.');
+      }
       console.error('Error creating post:', error);
     } finally {
       setIsSubmitting(false);
@@ -118,7 +131,7 @@ const PostCreate: React.FC<PostCreateProps> = ({ onPostCreated }) => {
             <button
               type="button"
               onClick={clearMedia}
-              className="absolute top-2 right-2 p-1 bg-gray-800 bg-opacity-50 rounded-full text-white hover:bg-opacity-70"
+              className="absolute top-2 right-2 p-1 bg-gray-800 bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-colors"
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -126,7 +139,7 @@ const PostCreate: React.FC<PostCreateProps> = ({ onPostCreated }) => {
         ) : (
           <label
             htmlFor="media-upload"
-            className="flex flex-col items-center justify-center cursor-pointer py-6"
+            className="flex flex-col items-center justify-center cursor-pointer py-6 hover:bg-gray-50 transition-colors"
           >
             <PhotoIcon className="h-12 w-12 text-gray-400" />
             <p className="mt-2 text-sm text-gray-500">
@@ -139,15 +152,26 @@ const PostCreate: React.FC<PostCreateProps> = ({ onPostCreated }) => {
         )}
       </div>
 
-      {/* Submit Button */}
-      <Button
-        type="submit"
-        disabled={isSubmitting || (!caption.trim() && !media)}
-        isLoading={isSubmitting}
-        className="w-full"
-      >
-        {isSubmitting ? 'Creating Post...' : 'Create Post'}
-      </Button>
+      {/* Submit Buttons */}
+      <div className="flex justify-end space-x-3">
+        {onClose && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+        )}
+        <Button
+          type="submit"
+          disabled={isSubmitting || (!caption.trim() && !media)}
+          isLoading={isSubmitting}
+        >
+          {isSubmitting ? 'Creating Post...' : 'Create Post'}
+        </Button>
+      </div>
     </form>
   );
 };

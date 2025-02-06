@@ -3,16 +3,17 @@ spring:
     name: social-media-platform
 
   datasource:
-    url: jdbc:mysql://localhost:3306/social_media_platform?useSSL=false
+    url: jdbc:mysql://localhost:3306/social_media_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: root
     password: user
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
+        dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
     show-sql: true
 
@@ -24,11 +25,36 @@ spring:
 
   web:
     resources:
-      static-locations: file:uploads/
+      static-locations:
+        - classpath:/static/
+        - file:${storage.upload-dir}
 
+# Storage Configuration
 storage:
-  upload-dir: uploads
+  upload-dir: uploads/
 
+# Sightengine Configuration
+sightengine:
+  api-user: "315417995"
+  api-secret: "rsbNChRSsK7s6JkBRftVp3Y2F3GLZcdv"
+  enabled: true
+  models: "nudity-2.1,weapon,alcohol,recreational_drug,medical,text-content,gore-2.0,text,violence,self-harm"
+  thresholds:
+    nudity: 0.6
+    weapon: 0.7
+    violence: 0.7
+    gore: 0.6
+    drug: 0.6
+    self-harm: 0.6
 
+# ReCaptcha Configuration
 recaptcha:
   secret: 6Lf9jbMqAAAAAD7_g3n9H4-NmXw52Cffl-NCCKrI
+
+# Logging Configuration
+logging:
+  level:
+    com.socialmedia: DEBUG
+    org.springframework.web.client.RestTemplate: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

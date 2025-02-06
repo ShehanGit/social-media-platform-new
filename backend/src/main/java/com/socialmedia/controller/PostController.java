@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/posts")
@@ -27,13 +29,30 @@ public class PostController {
     private final UserRepository userRepository;
 
     @PostMapping(consumes = { "multipart/form-data" })
-    public ResponseEntity<Post> createPost(
+    public ResponseEntity<?> createPost(
             @RequestParam("caption") String caption,
             @RequestParam(value = "media", required = false) MultipartFile media,
             @AuthenticationPrincipal UserDetails userDetails
-    ) throws IOException {
-        Post post = postService.createPost(caption, media, userDetails.getUsername());
-        return ResponseEntity.ok(post);
+    ) {
+        try {
+            Post post = postService.createPost(caption, media, userDetails.getUsername());
+            return ResponseEntity.ok(post);
+        } catch (IllegalStateException e) {
+            // Handle moderation failure
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of(
+                            "error", "Content moderation failed",
+                            "message", e.getMessage()
+                    ));
+        } catch (IOException e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "error", "Failed to process image",
+                            "message", e.getMessage()
+                    ));
+        }
     }
 
     @GetMapping("/{postId}")
@@ -56,16 +75,6 @@ public class PostController {
         return ResponseEntity.ok(postService.getFeedPosts(currentUser, pageRequest));
     }
 
-//    @GetMapping("/explore")
-//    public ResponseEntity<Page<PostResponse>> getExplorePosts(
-//            @RequestParam(defaultValue = "0") int page,
-//            @RequestParam(defaultValue = "10") int size,
-//            @RequestParam(defaultValue = "createdAt") String sortBy
-//    ) {
-//        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(sortBy).descending());
-//        return ResponseEntity.ok(postService.getExplorePosts(pageRequest));
-//    }
-
     @GetMapping("/by-likes")
     public ResponseEntity<Page<PostResponse>> getFeedPostsByLikes(
             @RequestParam(defaultValue = "0") int page,
@@ -77,28 +86,6 @@ public class PostController {
         PageRequest pageRequest = PageRequest.of(page, size);
         return ResponseEntity.ok(postService.getFeedPostsByLikes(currentUser, pageRequest));
     }
-
-
-//    @GetMapping("/explore/by-likes")
-//    public ResponseEntity<Page<PostResponse>> getExplorePostsByLikes(
-//            @RequestParam(defaultValue = "0") int page,
-//            @RequestParam(defaultValue = "10") int size
-//    ) {
-//        PageRequest pageRequest = PageRequest.of(page, size);
-//        return ResponseEntity.ok(postService.getExplorePostsByLikes(pageRequest));
-//    }
-
-//    @GetMapping("/user")
-//    public ResponseEntity<Page<PostResponse>> getUserPosts(
-//            @AuthenticationPrincipal UserDetails userDetails,
-//            @RequestParam(defaultValue = "0") int page,
-//            @RequestParam(defaultValue = "10") int size
-//    ) {
-//        PageRequest pageRequest = PageRequest.of(page, size);
-//        Page<Post> userPosts = postService.getPostsByUser(userDetails.getUsername(), pageRequest);
-//        Page<PostResponse> postResponses = userPosts.map(this::convertToPostResponse);
-//        return ResponseEntity.ok(postResponses);
-//    }
 
     private PostResponse convertToPostResponse(Post post) {
         return PostResponse.builder()
@@ -113,8 +100,8 @@ public class PostController {
                         .username(post.getUser().getUsername())
                         .profilePictureUrl(post.getUser().getProfilePictureUrl())
                         .build())
-                .likesCount(post.getLikes().size())
-                .commentsCount(post.getComments().size())
+                .likesCount(post.getLikes() != null ? post.getLikes().size() : 0)  // Added null check
+                .commentsCount(post.getComments() != null ? post.getComments().size() : 0)  // Added null check
                 .build();
     }
 

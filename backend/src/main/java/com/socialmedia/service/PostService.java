@@ -3,10 +3,12 @@ package com.socialmedia.service;
 import com.socialmedia.dto.PostResponse;
 import com.socialmedia.exception.ResourceNotFoundException;
 import com.socialmedia.model.Post;
+import com.socialmedia.moderation.ModerationResult; // Added import
 import com.socialmedia.repository.PostRepository;
 import com.socialmedia.user.User;
 import com.socialmedia.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value; // Added for uploadDir
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,33 +18,39 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class PostService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
-    private final String uploadDir = "uploads/";
+    private final ImageModerationService moderationService;
+    private final FileStorageService fileStorageService;
 
-    public Post createPost(String caption, MultipartFile mediaFile, String userEmail) throws IOException {
+    @Value("${storage.upload-dir}")  // Added to get uploadDir from properties
+    private String uploadDir;
+
+    public Post createPost(String caption, MultipartFile media, String userEmail) throws IOException {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        String fileName = null;
+        String mediaUrl = null;
         Post.MediaType mediaType = null;
 
-        if (mediaFile != null && !mediaFile.isEmpty()) {
-            fileName = UUID.randomUUID() + "_" + mediaFile.getOriginalFilename();
-            Path uploadPath = Paths.get(uploadDir);
+        if (media != null && !media.isEmpty()) {
+            // Moderate image before saving
+            ModerationResult moderationResult = moderationService.moderateImage(media);
 
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
+            if (!moderationResult.isApproved()) {
+                throw new IllegalStateException("Image moderation failed: " + moderationResult.getReason());
             }
 
-            Files.copy(mediaFile.getInputStream(), uploadPath.resolve(fileName));
+            // Process and save the image
+            String fileName = fileStorageService.storeFile(media);
+            mediaUrl = "/media/" + fileName;
 
-            String contentType = mediaFile.getContentType();
+            // Set media type
+            String contentType = media.getContentType();
             if (contentType != null) {
                 if (contentType.startsWith("image/")) {
                     mediaType = Post.MediaType.IMAGE;
@@ -55,13 +63,12 @@ public class PostService {
         Post post = Post.builder()
                 .caption(caption)
                 .user(user)
-                .mediaUrl(fileName != null ? "/media/" + fileName : null)
+                .mediaUrl(mediaUrl)
                 .mediaType(mediaType)
                 .build();
 
         return postRepository.save(post);
     }
-
     public Post getPost(Long postId) {
         return postRepository.findById(postId)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
